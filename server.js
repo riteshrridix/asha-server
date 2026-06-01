@@ -1,35 +1,26 @@
 const express = require('express');
-const cors = require('cors');
 const app = express();
 
 app.use(express.json());
 
-// ✅ CORS fix — handle preflight + all origins for Shopify
-const corsOptions = {
-  origin: function (origin, callback) {
-    const allowed = [
-      'https://aabo.in',
-      'https://aabo.myshopify.com'
-    ];
-    // Allow requests with no origin (e.g. Postman) or allowed origins
-    if (!origin || allowed.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  methods: ['POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type'],
-  optionsSuccessStatus: 200
-};
+// CORS headers
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', 'https://aabo.in');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  next();
+});
 
-// ✅ Handle preflight OPTIONS request explicitly
-app.options('/chat', cors(corsOptions));
+// ✅ Root route — confirms server is alive
+app.get('/', (req, res) => {
+  res.json({ status: 'Asha proxy is running ✅' });
+});
 
-// ✅ Main chat endpoint
-app.post('/chat', cors(corsOptions), async (req, res) => {
+// ✅ Chat route
+app.post('/chat', async (req, res) => {
   const { messages } = req.body;
-  if (!messages) return res.status(400).json({ error: 'No messages' });
+  if (!messages) return res.status(400).json({ error: 'No messages provided' });
 
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -50,7 +41,7 @@ app.post('/chat', cors(corsOptions), async (req, res) => {
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Server error', detail: err.message });
   }
 });
 
